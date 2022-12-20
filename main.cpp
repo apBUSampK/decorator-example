@@ -97,12 +97,22 @@ public:
 //A unification of two states
 class UnifyState: public IState {
 private:
-    const IState &first, &second;
+    const IState *first, *second;
+    UnifyState(const IState* first, const IState* second) : first(first), second(second) {}
+    UnifyState() : first(nullptr), second(nullptr) {}
 public:
-    UnifyState(const IState &first, const IState &second) : first(first), second(second) {}
-    UnifyState& operator=(const UnifyState& right)
-    bool contains(State s) const {
-        return first.contains(s) || second.contains(s);
+    ~UnifyState() {
+        delete first;
+        delete second;
+    }
+    inline static UnifyState* create() {
+        return new UnifyState();
+    }
+    inline static UnifyState* create(const IState* first, const IState* second) {
+        return new UnifyState(first, second);
+    }
+    bool contains(State s) const override {
+        return first->contains(s) || second->contains(s);
     }
 };
 
@@ -129,8 +139,8 @@ public:
 
 int main() {
     const int base = 10; //base of power
-    const int ncall = 1000; //number of calls for every test
-    const int bound = 1000; //boundaries of random energies
+    const int ncall = 10; //number of calls for every test
+    const int bound = 10; //boundaries of random energies
     std::string ftype("_ordered.out");
     ProbabilityTest prob(-bound, bound);
 
@@ -151,15 +161,15 @@ int main() {
     int pos = -bound;
     std::default_random_engine randeng(std::clock());
     std::uniform_int_distribution<int> distr(1, 4);
-    auto random = UnifyState(DiscreteState(pos), DiscreteState(pos += distr(randeng)));
+    auto random = UnifyState::create(new DiscreteState(pos), new DiscreteState(pos += distr(randeng)));
     for (int i = 2; i < bound / 2; i++)
-        random = UnifyState(random,  DiscreteState(pos += distr(randeng))); //basically a unification of bound/2 DiscreteStates
+        random = UnifyState::create(random,  new::DiscreteState(pos += distr(randeng))); //basically a unification of bound/2 DiscreteStates
 
-    //kinda slow due to a lot of object calls.
-    for (int pow = 0; pow <= 6; pow++) {
+    //kinda slow due to a lot of function calls.
+    for (int pow = 0; pow <= 4; pow++) {
         std::ofstream fout(std::to_string(pow) + ftype);
         for (int i = 0; i < ncall; i++)
-            fout << prob.test(random, n, std::clock()) << std::endl;
+            fout << prob.test(*random, n, std::clock()) << std::endl;
         fout.close();
         n *= base;
     }
